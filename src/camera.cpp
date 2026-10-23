@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Preferences.h>
+#include <atomic>
 #include "camera.h"
 
 // AI-Thinker ESP32-CAM
@@ -21,7 +22,9 @@
 #define PCLK_GPIO_NUM     22
 
 static volatile bool running = false;
-static volatile int frames_out = 0;   // frames handed out and not yet returned
+// Frames handed out and not yet returned. Atomic: the control and stream
+// servers run in separate tasks.
+static std::atomic<int> frames_out{0};
 // The XCLK line runs right past the Wi-Fi antenna and its harmonics can drown
 // out the radio: at the usual 20 MHz this board managed 0.03 Mbit/s, at
 // 24 MHz 2.3 Mbit/s and ~29 fps. Which clocks are clean depends on the Wi-Fi
@@ -120,8 +123,13 @@ bool camera_running() { return running; }
 int camera_xclk() { return xclk; }
 
 camera_fb_t *camera_grab() {
-  if (!running) return NULL;
+  // Count the frame out before checking `running`, so camera_stop() either
+  // sees this grab and waits for it, or this grab sees the camera stopping.
   frames_out++;
+  if (!running) {
+    frames_out--;
+    return NULL;
+  }
   camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) frames_out--;
   return fb;
