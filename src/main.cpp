@@ -20,7 +20,7 @@
 #include "secrets.h"
 
 static const int MIN_RSSI = -80;
-static const char *HOSTNAME = "robot";   // http://robot.local
+static const char *HOSTNAME = "robot";  // http://robot.local
 
 static void connect_wifi() {
   WiFi.mode(WIFI_STA);
@@ -71,10 +71,10 @@ static void connect_wifi() {
 static void start_ota() {
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.setPassword(OTA_PASSWORD);
-  ArduinoOTA.setMdnsEnabled(false);   // already advertised by connect_wifi()
+  ArduinoOTA.setMdnsEnabled(false);  // already advertised by connect_wifi()
   ArduinoOTA.onStart([]() {
     car_stop();
-    camera_stop();   // frees the radio and CPU for the upload
+    camera_stop();  // frees the radio and CPU for the upload
     Serial.println("OTA update starting");
   });
   ArduinoOTA.onError([](ota_error_t err) { Serial.printf("OTA error %u\n", err); });
@@ -87,8 +87,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
 
-  car_setup();             // first, so the motor pins aren't left floating
-  camera_start(0);         // keep going without video so the car still drives
+  car_setup();      // first, so the motor pins aren't left floating
+  camera_start(0);  // keep going without video so the car still drives
   connect_wifi();
   start_ota();
   web_server_start();

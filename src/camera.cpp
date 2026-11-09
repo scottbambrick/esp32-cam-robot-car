@@ -4,22 +4,22 @@
 #include "camera.h"
 
 // AI-Thinker ESP32-CAM
-#define PWDN_GPIO_NUM     32
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define PWDN_GPIO_NUM 32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM 0
+#define SIOD_GPIO_NUM 26
+#define SIOC_GPIO_NUM 27
+#define Y9_GPIO_NUM 35
+#define Y8_GPIO_NUM 34
+#define Y7_GPIO_NUM 39
+#define Y6_GPIO_NUM 36
+#define Y5_GPIO_NUM 21
+#define Y4_GPIO_NUM 19
+#define Y3_GPIO_NUM 18
+#define Y2_GPIO_NUM 5
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM 23
+#define PCLK_GPIO_NUM 22
 
 static volatile bool running = false;
 // Frames handed out and not yet returned. Atomic: the control and stream
@@ -41,15 +41,17 @@ static int rotate = 0;
 
 static void apply_settings() {
   sensor_t *s = esp_camera_sensor_get();
-  if (!s) return;
-  s->set_framesize(s, (framesize_t)framesize);
+  if (!s)
+    return;
+  s->set_framesize(s, (framesize_t) framesize);
   s->set_quality(s, quality);
   s->set_vflip(s, rotate);
   s->set_hmirror(s, rotate);
 }
 
 bool camera_start(int xclk_hz) {
-  if (running) return true;
+  if (running)
+    return true;
   prefs.begin("camera", false);
   if (xclk_hz >= 6000000 && xclk_hz <= 27000000) {
     xclk = xclk_hz;
@@ -96,7 +98,8 @@ bool camera_start(int xclk_hz) {
     config.fb_count = 1;
     config.fb_location = CAMERA_FB_IN_DRAM;
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-    if (framesize > FRAMESIZE_VGA) framesize = FRAMESIZE_VGA;
+    if (framesize > FRAMESIZE_VGA)
+      framesize = FRAMESIZE_VGA;
   }
 
   esp_err_t err = esp_camera_init(&config);
@@ -111,10 +114,12 @@ bool camera_start(int xclk_hz) {
 }
 
 void camera_stop() {
-  if (!running) return;
+  if (!running)
+    return;
   running = false;
   // Let the stream hand back its current frame before the buffers go away.
-  for (int i = 0; i < 300 && frames_out > 0; i++) delay(10);
+  for (int i = 0; i < 300 && frames_out > 0; i++)
+    delay(10);
   esp_camera_deinit();
   Serial.println("Camera stopped");
 }
@@ -131,7 +136,8 @@ camera_fb_t *camera_grab() {
     return NULL;
   }
   camera_fb_t *fb = esp_camera_fb_get();
-  if (!fb) frames_out--;
+  if (!fb)
+    frames_out--;
   return fb;
 }
 
@@ -143,7 +149,8 @@ void camera_release(camera_fb_t *fb) {
 void camera_set(char setting, int value) {
   switch (setting) {
     case 'F':
-      if (value < FRAMESIZE_QVGA || value > FRAMESIZE_XGA) return;
+      if (value < FRAMESIZE_QVGA || value > FRAMESIZE_XGA)
+        return;
       framesize = value;
       break;
     case 'Q':
@@ -155,5 +162,6 @@ void camera_set(char setting, int value) {
     default:
       return;
   }
-  if (running) apply_settings();
+  if (running)
+    apply_settings();
 }

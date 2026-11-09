@@ -2,12 +2,12 @@
 #include "car.h"
 
 // Pin map from the DroneBot Workshop ESP32-CAM robot car (TB6612FNG driver).
-#define MTR_PWM    12   // PWMA and PWMB, both tied to this one pin
-#define LEFT_M0    15
-#define LEFT_M1    14
-#define RIGHT_M0   13
-#define RIGHT_M1    2
-#define LED_PIN     4   // onboard flash LED
+#define MTR_PWM 12  // PWMA and PWMB, both tied to this one pin
+#define LEFT_M0 15
+#define LEFT_M1 14
+#define RIGHT_M0 13
+#define RIGHT_M1 2
+#define LED_PIN 4  // onboard flash LED
 
 // With both PWM inputs on one pin the two sides can't run at different speeds,
 // so GPIO12 is held high and the direction inputs are PWM'd instead. The
@@ -37,13 +37,13 @@ static const uint32_t BRAKE_MS = 300;
 // ESP32's supply. Slowing down is immediate, and reversing goes via zero.
 struct Side {
   int ch_fwd, ch_rev;
-  volatile int target;   // percent, -100..100
+  volatile int target;  // percent, -100..100
   float current;
   uint32_t brake_until;
 };
 static Side sides[2] = {{CH_L0, CH_L1, 0, 0, 0}, {CH_R0, CH_R1, 0, 0, 0}};
 
-static volatile int accel_rate = 400;   // percent per second, 0 = instant
+static volatile int accel_rate = 400;  // percent per second, 0 = instant
 static volatile bool brake_enabled = true;
 static volatile uint32_t last_command = 0;
 static uint32_t last_loop_us = 0;
@@ -64,22 +64,24 @@ static void update(Side &s, float dt, uint32_t now) {
   float cur = s.current;
 
   if (target == 0) {
-    if (cur != 0) s.brake_until = brake_enabled ? now + BRAKE_MS : 0;
+    if (cur != 0)
+      s.brake_until = brake_enabled ? now + BRAKE_MS : 0;
     cur = 0;
   } else {
-    if (cur != 0 && (target > 0) != (cur > 0)) cur = 0;   // reversing
+    if (cur != 0 && (target > 0) != (cur > 0))
+      cur = 0;  // reversing
     if (abs(target) <= fabsf(cur) || accel_rate == 0) {
       cur = target;
     } else {
       float step = accel_rate * dt;
-      cur = target > 0 ? min(cur + step, (float)target) : max(cur - step, (float)target);
+      cur = target > 0 ? min(cur + step, (float) target) : max(cur - step, (float) target);
     }
     s.brake_until = 0;
   }
 
   s.current = cur;
-  int pct = (int)lroundf(cur);
-  output(s, pct, pct == 0 && (int32_t)(s.brake_until - now) > 0);
+  int pct = (int) lroundf(cur);
+  output(s, pct, pct == 0 && (int32_t) (s.brake_until - now) > 0);
 }
 
 void car_setup() {
@@ -101,8 +103,8 @@ void car_setup() {
 void car_drive(int left, int right) {
   left = constrain(left, -100, 100);
   right = constrain(right, -100, 100);
-  sides[0].target = SWAP_SIDES ? right : left;   // LEFT_M pins
-  sides[1].target = SWAP_SIDES ? left : right;   // RIGHT_M pins
+  sides[0].target = SWAP_SIDES ? right : left;  // LEFT_M pins
+  sides[1].target = SWAP_SIDES ? left : right;  // RIGHT_M pins
   last_command = millis();
 }
 
@@ -126,14 +128,8 @@ void car_loop() {
   update(sides[1], dt, now);
 }
 
-void car_set_accel(int percent_per_second) {
-  accel_rate = constrain(percent_per_second, 0, 5000);
-}
+void car_set_accel(int percent_per_second) { accel_rate = constrain(percent_per_second, 0, 5000); }
 
-void car_set_brake(bool enabled) {
-  brake_enabled = enabled;
-}
+void car_set_brake(bool enabled) { brake_enabled = enabled; }
 
-void car_light(uint8_t duty) {
-  ledcWrite(CH_LED, duty);
-}
+void car_light(uint8_t duty) { ledcWrite(CH_LED, duty); }

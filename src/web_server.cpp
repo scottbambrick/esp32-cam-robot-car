@@ -38,8 +38,8 @@ static esp_err_t icon_handler(httpd_req_t *req) {
   bool big = strstr(req->uri, "512") != NULL;
   httpd_resp_set_type(req, "image/png");
   httpd_resp_set_hdr(req, "Cache-Control", "max-age=604800");
-  return big ? httpd_resp_send(req, (const char *)ICON_512_PNG, sizeof(ICON_512_PNG))
-             : httpd_resp_send(req, (const char *)ICON_192_PNG, sizeof(ICON_192_PNG));
+  return big ? httpd_resp_send(req, (const char *) ICON_512_PNG, sizeof(ICON_512_PNG))
+             : httpd_resp_send(req, (const char *) ICON_192_PNG, sizeof(ICON_192_PNG));
 }
 
 static esp_err_t capture_handler(httpd_req_t *req) {
@@ -50,7 +50,7 @@ static esp_err_t capture_handler(httpd_req_t *req) {
   }
   httpd_resp_set_type(req, "image/jpeg");
   httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
-  esp_err_t res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
+  esp_err_t res = httpd_resp_send(req, (const char *) fb->buf, fb->len);
   camera_release(fb);
   return res;
 }
@@ -67,21 +67,24 @@ static esp_err_t set_handler(httpd_req_t *req) {
       httpd_query_key_value(query, "val", val, sizeof(val)) == ESP_OK) {
     int v = atoi(val);
     if (!strcmp(var, "txpower")) {
-      ok = WiFi.setTxPower((wifi_power_t)v);
+      ok = WiFi.setTxPower((wifi_power_t) v);
     } else if (!strcmp(var, "xclk")) {
       camera_stop();
       ok = camera_start(v * 1000000);
     } else if (!strcmp(var, "camera")) {
-      if (v) ok = camera_start(0);
-      else camera_stop();
+      if (v)
+        ok = camera_start(0);
+      else
+        camera_stop();
     } else {
       ok = false;
     }
   }
   char out[128];
-  snprintf(out, sizeof(out), "{\"ok\":%s,\"txpower\":%d,\"xclk\":%d,\"camera\":%d,\"channel\":%d,\"rssi\":%d,\"heap\":%u}",
-           ok ? "true" : "false", (int)WiFi.getTxPower(), camera_xclk() / 1000000,
-           camera_running() ? 1 : 0, (int)WiFi.channel(), (int)WiFi.RSSI(), (unsigned)ESP.getFreeHeap());
+  snprintf(out, sizeof(out),
+           "{\"ok\":%s,\"txpower\":%d,\"xclk\":%d,\"camera\":%d,\"channel\":%d,\"rssi\":%d,\"heap\":%u}",
+           ok ? "true" : "false", (int) WiFi.getTxPower(), camera_xclk() / 1000000, camera_running() ? 1 : 0,
+           (int) WiFi.channel(), (int) WiFi.RSSI(), (unsigned) ESP.getFreeHeap());
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, out, HTTPD_RESP_USE_STRLEN);
 }
@@ -90,27 +93,32 @@ static esp_err_t set_handler(httpd_req_t *req) {
 // is watching, and would otherwise block the control WebSocket.
 static esp_err_t stream_handler(httpd_req_t *req) {
   esp_err_t res = httpd_resp_set_type(req, STREAM_CONTENT_TYPE);
-  if (res != ESP_OK) return res;
+  if (res != ESP_OK)
+    return res;
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   httpd_resp_set_hdr(req, "Cache-Control", "no-store");
 
   char part[64];
   while (true) {
     camera_fb_t *fb = camera_grab();
-    if (!fb) return ESP_FAIL;   // camera stopped or capture failed; page retries
-    size_t hlen = snprintf(part, sizeof(part), STREAM_PART, (unsigned)fb->len);
+    if (!fb)
+      return ESP_FAIL;  // camera stopped or capture failed; page retries
+    size_t hlen = snprintf(part, sizeof(part), STREAM_PART, (unsigned) fb->len);
     res = httpd_resp_send_chunk(req, STREAM_BOUNDARY, strlen(STREAM_BOUNDARY));
-    if (res == ESP_OK) res = httpd_resp_send_chunk(req, part, hlen);
-    if (res == ESP_OK) res = httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len);
+    if (res == ESP_OK)
+      res = httpd_resp_send_chunk(req, part, hlen);
+    if (res == ESP_OK)
+      res = httpd_resp_send_chunk(req, (const char *) fb->buf, fb->len);
     camera_release(fb);
-    if (res != ESP_OK) return res;   // client went away
+    if (res != ESP_OK)
+      return res;  // client went away
   }
 }
 
 static void ws_reply(httpd_req_t *req, const char *text) {
   httpd_ws_frame_t out = {};
   out.type = HTTPD_WS_TYPE_TEXT;
-  out.payload = (uint8_t *)text;
+  out.payload = (uint8_t *) text;
   out.len = strlen(text);
   httpd_ws_send_frame(req, &out);
 }
@@ -128,14 +136,16 @@ static void handle_drive(httpd_req_t *req, int left, int right) {
   uint32_t now = millis();
   bool moving = left != 0 || right != 0;
   if (fd != driver_fd) {
-    if (!moving) return;
+    if (!moving)
+      return;
     if (driver_fd >= 0 && now - driver_active < DRIVER_IDLE_MS) {
       ws_reply(req, "K");
       return;
     }
     driver_fd = fd;
   }
-  if (moving) driver_active = now;
+  if (moving)
+    driver_active = now;
   car_drive(left, right);
 }
 
@@ -148,38 +158,49 @@ static void handle_drive(httpd_req_t *req, int left, int right) {
 //   R <0|1>            rotate video 180 degrees
 //   P <id>             ping; answered with "P <id> <rssi>"
 static esp_err_t ws_handler(httpd_req_t *req) {
-  if (req->method == HTTP_GET) return ESP_OK;   // handshake
+  if (req->method == HTTP_GET)
+    return ESP_OK;  // handshake
 
   httpd_ws_frame_t frame = {};
-  esp_err_t res = httpd_ws_recv_frame(req, &frame, 0);   // length only
-  if (res != ESP_OK) return res;
+  esp_err_t res = httpd_ws_recv_frame(req, &frame, 0);  // length only
+  if (res != ESP_OK)
+    return res;
   char buf[64];
-  if (frame.len >= sizeof(buf)) return ESP_FAIL;
-  if (frame.len == 0) return ESP_OK;
-  frame.payload = (uint8_t *)buf;
+  if (frame.len >= sizeof(buf))
+    return ESP_FAIL;
+  if (frame.len == 0)
+    return ESP_OK;
+  frame.payload = (uint8_t *) buf;
   res = httpd_ws_recv_frame(req, &frame, sizeof(buf) - 1);
-  if (res != ESP_OK) return res;
-  if (frame.type != HTTPD_WS_TYPE_TEXT) return ESP_OK;
+  if (res != ESP_OK)
+    return res;
+  if (frame.type != HTTPD_WS_TYPE_TEXT)
+    return ESP_OK;
   buf[frame.len] = '\0';
 
   int a = 0, b = 0;
   switch (buf[0]) {
     case 'D':
-      if (sscanf(buf + 1, "%d %d", &a, &b) == 2) handle_drive(req, a, b);
+      if (sscanf(buf + 1, "%d %d", &a, &b) == 2)
+        handle_drive(req, a, b);
       break;
     case 'A':
-      if (sscanf(buf + 1, "%d", &a) == 1) car_set_accel(a);
+      if (sscanf(buf + 1, "%d", &a) == 1)
+        car_set_accel(a);
       break;
     case 'B':
-      if (sscanf(buf + 1, "%d", &a) == 1) car_set_brake(a != 0);
+      if (sscanf(buf + 1, "%d", &a) == 1)
+        car_set_brake(a != 0);
       break;
     case 'L':
-      if (sscanf(buf + 1, "%d", &a) == 1) car_light(constrain(a, 0, 255));
+      if (sscanf(buf + 1, "%d", &a) == 1)
+        car_light(constrain(a, 0, 255));
       break;
     case 'F':
     case 'Q':
     case 'R':
-      if (sscanf(buf + 1, "%d", &a) == 1) camera_set(buf[0], a);
+      if (sscanf(buf + 1, "%d", &a) == 1)
+        camera_set(buf[0], a);
       break;
     case 'P':
       if (sscanf(buf + 1, "%d", &a) == 1) {
@@ -193,7 +214,8 @@ static esp_err_t ws_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
-static void register_uri(httpd_handle_t server, const char *uri, esp_err_t (*handler)(httpd_req_t *), bool websocket = false) {
+static void register_uri(httpd_handle_t server, const char *uri, esp_err_t (*handler)(httpd_req_t *),
+                         bool websocket = false) {
   httpd_uri_t u = {};
   u.uri = uri;
   u.method = HTTP_GET;
